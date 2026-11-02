@@ -26,8 +26,12 @@ async function discoverFields() {
     const f = fields.find((x) => typeof x.name === 'string' && re.test(x.name));
     return f ? f.id : null;
   };
+  const allByName = (re) => fields.filter((x) => typeof x.name === 'string' && re.test(x.name)).map((x) => x.id);
   fieldCache = {
-    storyPoints: byName(/^story point/i),
+    // A site can expose more than one story-point field ("Story Points" in
+    // company-managed projects, "Story point estimate" in team-managed ones).
+    // Keep every candidate; normaliseIssue uses whichever one holds a value.
+    storyPoints: allByName(/^story point/i),
     flagged: byName(/^flagged$/i),
   };
   return fieldCache;
@@ -60,7 +64,7 @@ async function getSprintIssues(sprintId, fieldIds) {
     'issuelinks',
     'comment',
   ];
-  if (fieldIds.storyPoints) wanted.push(fieldIds.storyPoints);
+  for (const id of fieldIds.storyPoints || []) wanted.push(id);
   if (fieldIds.flagged) wanted.push(fieldIds.flagged);
   const fieldsParam = wanted.join(',');
 
@@ -95,9 +99,12 @@ function normaliseIssue(raw, fieldIds, browseBase) {
   const blockedBy = [];
   for (const link of f.issuelinks || []) {
     const inward = (link.type || {}).inward || '';
-    if (/is blocked by/i.test(inward) && link.inwardIssue) {
-      const linkedDone = ((((link.inwardIssue.fields || {}).status || {}).statusCategory || {}).key || '') === DONE;
-      if (!linkedDone) blockedBy.push(link.inwardIssue.key);
+    // Jira returns, on the blocked issue, the blocker as the link's outwardIssue
+    // (the end whose relationship is "blocks"); the inwardIssue field is the
+    // current issue and is omitted. So read outwardIssue as the blocker.
+    if (/is blocked by/i.test(inward) && link.outwardIssue) {
+      const linkedDone = ((((link.outwardIssue.fields || {}).status || {}).statusCategory || {}).key || '') === DONE;
+      if (!linkedDone) blockedBy.push(link.outwardIssue.key);
     }
   }
 
@@ -107,8 +114,11 @@ function normaliseIssue(raw, fieldIds, browseBase) {
   }
 
   let storyPoints = null;
-  if (fieldIds.storyPoints && typeof f[fieldIds.storyPoints] === 'number') {
-    storyPoints = f[fieldIds.storyPoints];
+  for (const id of fieldIds.storyPoints || []) {
+    if (typeof f[id] === 'number') {
+      storyPoints = f[id];
+      break;
+    }
   }
 
   return {
