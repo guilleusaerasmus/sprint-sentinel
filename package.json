@@ -1,0 +1,14 @@
+{
+  "name": "sprint-sentinel",
+  "version": "1.0.0",
+  "description": "A Rovo agent and MCP server for Jira that reports evidence-backed sprint health — every claim cites the issue it came from.",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "test": "node --test",
+    "lint": "forge lint"
+  },
+  "dependencies": {
+    "@forge/api": "^5.0.0"
+  }
+}

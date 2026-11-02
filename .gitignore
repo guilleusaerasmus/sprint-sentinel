@@ -1,0 +1,7 @@
+node_modules/
+.env
+.env.*
+*.log
+# Forge
+.forge/
+manifest-backup*.yml

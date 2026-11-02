@@ -1,0 +1,169 @@
+modules:
+  rovo:agent:
+    - key: sprint-sentinel-agent
+      name: Sprint Sentinel
+      description: >-
+        Reports evidence-backed sprint health for a Jira board: what is at risk,
+        who is overloaded, and what is blocked. Every statement cites the issue
+        it came from.
+      prompt: >-
+        You are Sprint Sentinel, an assistant that reports the health of a Jira
+        sprint to a delivery team, grounded strictly in live board data.
+
+
+        You have four tools: "Sprint health report" for the overall picture,
+        "At-risk issues" for the list of risks with reasons, "Assignee workload"
+        for who is overloaded, and "Blocked issues" for blockers. Every tool
+        needs a numeric board id.
+
+
+        How to work:
+
+        - Always call a tool to get data before answering. Never describe a
+          sprint from memory or assumption.
+
+        - If the user has not given a board id, ask for it (the number in the
+          board URL, shown as rapidView= or boardId=). Do not guess one.
+
+        - Report ONLY facts present in the tool output: issue keys, counts,
+          names, dates and reasons. Never invent or alter any of them. When you
+          state that something is at risk, cite the issue key the tool gave for
+          it.
+
+        - The tool output already contains the exact numbers and the evidence
+          for each finding. Relay them faithfully; do not round, inflate or add
+          risks the tools did not report.
+
+        - If a tool reports no active sprint or an error, say so plainly. Do not
+          fabricate a report.
+
+        - Be concise and lead with the most serious items: high-severity risks
+          first, then overloaded people, then blockers.
+
+        - You may suggest a practical next step (unblock an issue, rebalance
+          work from an overloaded person), but present it as advice and tie it
+          to the specific cited issues.
+
+
+        Tone: direct, practical, no filler.
+      conversationStarters:
+        - How healthy is the sprint on board 1?
+        - What is at risk on board 1 right now?
+        - Who is overloaded on board 1?
+        - What is blocked on board 1?
+      actions:
+        - sprint-health
+        - at-risk-issues
+        - assignee-load
+        - blocked-issues
+
+  rovo:mcp:
+    - key: sprint-sentinel-mcp
+      name: Sprint Sentinel MCP
+      description: >-
+        Tools that return evidence-backed Jira sprint health (overall health,
+        at-risk issues, per-person load, blockers) for any MCP-capable agent.
+      tools:
+        - sprint-health
+        - at-risk-issues
+        - assignee-load
+        - blocked-issues
+
+  action:
+    - key: sprint-health
+      name: Sprint health report
+      function: healthFn
+      actionVerb: GET
+      description: >-
+        Returns an overall health report for the active sprint on a Jira board:
+        progress, counts of at-risk issues by severity, who is overloaded, what
+        is blocked, and the top risk findings. Use for "how is the sprint going".
+      inputs:
+        boardId:
+          title: Board id
+          type: string
+          required: true
+          description: The numeric id of the Jira board (seen in the board URL as rapidView= or boardId=).
+        staleDays:
+          title: Stale threshold (days)
+          type: string
+          required: false
+          description: An in-progress issue untouched for at least this many days is flagged as stale. Default 3.
+        wipLimit:
+          title: WIP limit
+          type: string
+          required: false
+          description: More than this many in-progress issues for one person counts as overloaded. Default 3.
+
+    - key: at-risk-issues
+      name: At-risk issues
+      function: atRiskFn
+      actionVerb: GET
+      description: >-
+        Lists the at-risk issues in the active sprint, each with the concrete
+        reason (stale, blocked, overdue, unassigned, churn) and severity.
+        Optionally filter to one severity. Use for "what is at risk".
+      inputs:
+        boardId:
+          title: Board id
+          type: string
+          required: true
+          description: The numeric id of the Jira board.
+        severity:
+          title: Severity filter
+          type: string
+          required: false
+          description: Optional. One of high, medium or low to return only that severity.
+
+    - key: assignee-load
+      name: Assignee workload
+      function: loadFn
+      actionVerb: GET
+      description: >-
+        Returns work-in-progress per person for the active sprint, with story
+        points and a flag for anyone over the WIP limit. Use for "who is
+        overloaded" or "who is working on what".
+      inputs:
+        boardId:
+          title: Board id
+          type: string
+          required: true
+          description: The numeric id of the Jira board.
+        wipLimit:
+          title: WIP limit
+          type: string
+          required: false
+          description: More than this many in-progress issues for one person counts as overloaded. Default 3.
+
+    - key: blocked-issues
+      name: Blocked issues
+      function: blockedFn
+      actionVerb: GET
+      description: >-
+        Lists the blocked issues in the active sprint (flagged as impediments or
+        linked "is blocked by" an open issue) and names each blocker. Use for
+        "what is blocked".
+      inputs:
+        boardId:
+          title: Board id
+          type: string
+          required: true
+          description: The numeric id of the Jira board.
+
+  function:
+    - key: healthFn
+      handler: index.sprintHealth
+    - key: atRiskFn
+      handler: index.atRiskIssues
+    - key: loadFn
+      handler: index.assigneeLoad
+    - key: blockedFn
+      handler: index.blockedIssues
+
+permissions:
+  scopes:
+    - read:jira-work
+
+app:
+  runtime:
+    name: nodejs24.x
