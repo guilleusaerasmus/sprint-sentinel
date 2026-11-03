@@ -70,7 +70,7 @@ Atlassian Forge · Rovo (agent + MCP) · Jira Cloud (Agile + Platform REST) · N
 
 ## Links
 - **Try it / install:** (Forge app — distribution link to add before submitting)
-- **Source code:** (public GitHub repo URL to add)
+- **Source code:** https://github.com/guilleusaerasmus/sprint-sentinel
 - **Demo video:** (YouTube URL, <5 min, to add)
 
 ## Bonus categories we're entering

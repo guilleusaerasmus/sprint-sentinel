@@ -2,6 +2,7 @@ modules:
   rovo:agent:
     - key: sprint-sentinel-agent
       name: Sprint Sentinel
+      icon: resource:icon;agent-icon.svg
       description: >-
         Reports evidence-backed sprint health for a Jira board: what is at risk,
         who is overloaded, and what is blocked. Every statement cites the issue
@@ -168,6 +169,10 @@ permissions:
     - read:issue-details:jira
     - read:jql:jira
     - read:jira-work
+
+resources:
+  - key: icon
+    path: static/icon
 
 app:
   runtime:
