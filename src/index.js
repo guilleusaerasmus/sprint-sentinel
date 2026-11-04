@@ -6,7 +6,7 @@
 // `text` block (so the agent relays exact, cited facts) and the raw `data`.
 
 const { loadSprint } = require('./lib/jira');
-const { analyseSprint } = require('./lib/analysis');
+const { analyseSprint, forecastSprint } = require('./lib/analysis');
 
 function readThresholds(payload) {
   const opts = {};
@@ -47,6 +47,7 @@ async function withSprint(payload, build) {
       return { text: msg, data: { boardId, activeSprint: null } };
     }
     const report = analyseSprint(issues, { now: new Date(), options: readThresholds(payload) });
+    report.forecast = forecastSprint(report, sprint, new Date());
     return build({ boardId, sprint, report });
   } catch (e) {
     const msg = e.userFacing ? e.message : `Could not analyse board ${boardId}: ${e.message}`;
@@ -67,10 +68,15 @@ function fmtFinding(f) {
 const sprintHealth = async (payload) =>
   withSprint(payload, ({ sprint, report }) => {
     const s = report.summary;
+    const f = report.forecast;
     const top = report.findings.slice(0, 8).map(fmtFinding);
     const overloaded = report.load.filter((r) => r.overloaded).map((r) => `${r.assignee} (${r.inProgress} in progress)`);
+    const forecastLine = f.projectedCompletionPercent != null
+      ? `Confidence: ${f.confidence.toUpperCase()} — projected ${f.projectedCompletionPercent}% of issues done by the end date. ${f.drivers[0]}`
+      : `Confidence: ${f.confidence.toUpperCase()} — ${f.drivers[0]}`;
     const lines = [
       `${sprintLine(sprint)} — health report`,
+      forecastLine,
       `Progress: ${s.done}/${s.total} done (${s.completionPercent}%); ${s.inProgress} in progress, ${s.toDo} to do.`,
       `At risk: ${s.atRiskIssues} issue(s) — ${s.findingsBySeverity.high} high, ${s.findingsBySeverity.medium} medium, ${s.findingsBySeverity.low} low.`,
       overloaded.length ? `Overloaded: ${overloaded.join('; ')}.` : 'No one is over the WIP limit.',
@@ -79,7 +85,7 @@ const sprintHealth = async (payload) =>
       top.length ? 'Top risks:' : 'No risks detected.',
       ...top,
     ];
-    return { text: lines.join('\n'), data: { sprint, summary: s, topFindings: report.findings.slice(0, 8) } };
+    return { text: lines.join('\n'), data: { sprint, summary: s, forecast: f, topFindings: report.findings.slice(0, 8) } };
   });
 
 // 2) The at-risk issues, optionally filtered by severity.

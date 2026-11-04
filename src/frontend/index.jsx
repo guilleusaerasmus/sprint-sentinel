@@ -30,6 +30,33 @@ function Stat({ label, value }) {
   );
 }
 
+const CONF_APPEARANCE = { high: 'success', medium: 'moved', low: 'removed' };
+const CONF_LABEL = { high: 'On track', medium: 'At risk', low: 'Off track' };
+
+function ConfidenceCard({ forecast }) {
+  const f = forecast;
+  return (
+    <Box padding="space.200" backgroundColor="color.background.neutral" xcss={{ borderRadius: 'border.radius' }}>
+      <Stack space="space.100">
+        <Inline space="space.100" alignBlock="center" shouldWrap>
+          <Text><Strong>Sprint confidence</Strong></Text>
+          <Lozenge appearance={CONF_APPEARANCE[f.confidence] || 'default'} isBold>
+            {f.confidence.toUpperCase()} · {CONF_LABEL[f.confidence]}
+          </Lozenge>
+          {f.projectedCompletionPercent != null && (
+            <Text>Projected {f.projectedCompletionPercent}% done by the end date</Text>
+          )}
+        </Inline>
+        <Stack space="space.0">
+          {f.drivers.map((d, i) => (
+            <Text key={i} size="small">• {d}</Text>
+          ))}
+        </Stack>
+      </Stack>
+    </Box>
+  );
+}
+
 function Report({ res }) {
   const { sprint, report } = res;
   const s = report.summary;
@@ -41,6 +68,8 @@ function Report({ res }) {
         <Heading as="h2">{sprint.name}</Heading>
         {sprint.endDate && <Text size="small">Ends {sprint.endDate.slice(0, 10)}</Text>}
       </Box>
+
+      {report.forecast && <ConfidenceCard forecast={report.forecast} />}
 
       <Inline space="space.100" shouldWrap>
         <Stat label="Done" value={`${s.completionPercent}%`} />

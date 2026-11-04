@@ -197,9 +197,65 @@ function analyseSprint(issues, { now = new Date(), options = {} } = {}) {
   };
 }
 
+// Sprint outcome forecast — an auditable "will this sprint land?" read.
+//
+// This is deliberately a transparent heuristic, not a black-box probability:
+// it linearly extrapolates the current completion pace to the sprint end date,
+// then adjusts a confidence label for the concrete risks the engine already
+// found. Every driver is returned as plain text so the number can be audited.
+// Like the rest of this file it is pure and unit-tested; the LLM never computes
+// the forecast, it only relays it.
+function forecastSprint(report, sprint, now = new Date()) {
+  const s = report.summary;
+  const workDone = s.total > 0 ? s.done / s.total : 0;
+
+  const start = sprint && sprint.startDate ? toDate(sprint.startDate) : null;
+  const end = sprint && sprint.endDate ? toDate(sprint.endDate) : null;
+  const nowD = toDate(now);
+
+  let timeElapsed = null; // 0..1 of the sprint window
+  let projected = null; // 0..1 projected completion at the end date
+  if (start && end && end.getTime() > start.getTime() && nowD) {
+    const totalMs = end.getTime() - start.getTime();
+    const elapsedMs = Math.min(Math.max(nowD.getTime() - start.getTime(), 0), totalMs);
+    timeElapsed = elapsedMs / totalMs;
+    // Linear pace extrapolation; needs enough of the sprint to have elapsed.
+    if (timeElapsed >= 0.05) projected = Math.min(1, workDone / timeElapsed);
+  }
+
+  const highRisks = s.findingsBySeverity.high;
+  const overloaded = report.load.filter((r) => r.overloaded).length;
+
+  // Confidence label from the projected finish, then downgraded for serious risk.
+  const p = projected == null ? workDone : projected;
+  let confidence = p >= 0.9 ? 'high' : p >= 0.7 ? 'medium' : 'low';
+  if ((highRisks >= 2 || overloaded >= 1) && confidence === 'high') confidence = 'medium';
+  if (highRisks >= 3 && confidence === 'medium') confidence = 'low';
+
+  const drivers = [];
+  if (timeElapsed != null) {
+    drivers.push(`${Math.round(timeElapsed * 100)}% of the sprint has elapsed while ${s.completionPercent}% of issues are done.`);
+  } else {
+    drivers.push(`Based on current completion only (${s.completionPercent}%); no sprint start/end dates to project a pace.`);
+  }
+  if (projected != null) {
+    drivers.push(`At the current pace, about ${Math.round(projected * 100)}% of committed issues would be done by the end date.`);
+  }
+  if (highRisks) drivers.push(`${highRisks} high-severity risk${highRisks === 1 ? '' : 's'} (blocked or overdue) threaten delivery.`);
+  if (overloaded) drivers.push(`${overloaded} ${overloaded === 1 ? 'person is' : 'people are'} over the WIP limit.`);
+
+  return {
+    confidence, // 'high' | 'medium' | 'low'
+    projectedCompletionPercent: projected != null ? Math.round(projected * 100) : null,
+    drivers,
+    basis: { workDoneFraction: workDone, timeElapsedFraction: timeElapsed },
+  };
+}
+
 module.exports = {
   DEFAULTS,
   analyseSprint,
+  forecastSprint,
   issueFindings,
   assigneeLoad,
   blockedIssues,

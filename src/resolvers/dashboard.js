@@ -6,7 +6,7 @@
 
 const Resolver = require('@forge/resolver').default;
 const { loadSprint } = require('../lib/jira');
-const { analyseSprint } = require('../lib/analysis');
+const { analyseSprint, forecastSprint } = require('../lib/analysis');
 
 const resolver = new Resolver();
 
@@ -18,6 +18,7 @@ resolver.define('getSprintReport', async ({ payload }) => {
     const { sprint, issues } = await loadSprint(boardId);
     if (!sprint) return { boardId, sprint: null };
     const report = analyseSprint(issues, { now: new Date() });
+    report.forecast = forecastSprint(report, sprint, new Date());
     return { boardId, sprint, report };
   } catch (e) {
     return { error: `Could not read board ${boardId}: ${e.message}` };
