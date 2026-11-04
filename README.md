@@ -9,6 +9,14 @@ Jira issue it came from, so the AI can't invent a number or a risk.
 Three surfaces, one tested engine: chat with it as a **Rovo agent**, call it from
 any **MCP**-capable client, or open the **visual dashboard** on your Jira project.
 
+**The headline: an auditable Sprint Confidence forecast.** It doesn't just report
+status — it projects whether the sprint will land. A High / Medium / Low
+confidence read, a projected end-of-sprint completion %, and the exact drivers
+behind it ("44% of the sprint has elapsed while 25% of issues are done; at this
+pace ~57% will be done by the end date; 4 high-severity risks"). Crucially the
+forecast is computed by a unit-tested engine — not the language model — so you can
+audit every number. *Build with context, ship with confidence.*
+
 Built for **Codegeist 2026**.
 
 ## The problem
@@ -43,6 +51,13 @@ it. The risk rules:
 
 Plus per-person work-in-progress load with a configurable WIP limit.
 
+**Sprint Confidence forecast.** On top of the current status, the engine projects
+the sprint *outcome*: it linearly extrapolates the completion pace to the sprint
+end date and downgrades a High/Medium/Low confidence label for the concrete risks
+it found. It returns a projected completion % and the plain-text drivers behind
+it, so the forecast is auditable — never a black-box guess. (`forecastSprint` in
+`src/lib/analysis.js`, with its own unit tests.)
+
 The same four tools also power a **visual dashboard** inside Jira (a
 `jira:projectPage`, see `src/frontend/`): progress and at-risk stat tiles, a
 completion bar, the top risks (each a link to its issue), per-assignee workload
@@ -56,13 +71,13 @@ the board, a **pure, unit-tested analysis engine** (`src/lib/analysis.js`)
 derives every finding, and the agent's prompt restricts it to relaying only what
 the tools returned, always citing the issue key. The dashboard shares the same
 engine, so it can't invent a number either. The hard logic is covered by
-21 tests that run with no Jira and no network (`npm test`).
+27 tests that run with no Jira and no network (`npm test`).
 
 See it without a Jira instance at all:
 
 ```bash
 npm install
-npm test            # 21/21 — the analysis engine
+npm test            # 27/27 — the analysis engine
 node examples/demo.js   # a full report on sample issues
 ```
 
@@ -82,7 +97,7 @@ One Forge app, three surfaces from one implementation:
 
 ## Architecture
 
-- `src/lib/analysis.js` — pure sprint-health logic (risk rules, load, summary). No I/O.
+- `src/lib/analysis.js` — pure sprint-health logic (risk rules, load, summary, and the `forecastSprint` confidence forecast). No I/O.
 - `src/lib/jira.js` — fetches the active sprint and its issues, normalises them, discovers the Story Points and Flagged custom fields by name.
 - `src/index.js` — the four Forge action handlers; each returns a ready-to-read `text` block plus raw `data`.
 - `src/resolvers/dashboard.js` — resolver for the dashboard; reuses `loadSprint` + `analyseSprint`.
