@@ -67,6 +67,15 @@ modules:
         - assignee-load
         - blocked-issues
 
+  jira:projectPage:
+    - key: sprint-dashboard
+      resource: dashboard
+      render: native
+      resolver:
+        function: dashboard-resolver
+      title: Sprint Sentinel
+      icon: resource:icon;sentinel-shield.svg
+
   action:
     - key: sprint-health
       name: Sprint health report
@@ -162,6 +171,8 @@ modules:
       handler: index.assigneeLoad
     - key: blockedFn
       handler: index.blockedIssues
+    - key: dashboard-resolver
+      handler: resolvers/dashboard.handler
 
 permissions:
   scopes:
@@ -173,6 +184,8 @@ permissions:
 resources:
   - key: icon
     path: static/icon
+  - key: dashboard
+    path: src/frontend/index.jsx
 
 app:
   runtime:

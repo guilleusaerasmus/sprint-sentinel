@@ -9,6 +9,9 @@
     "lint": "forge lint"
   },
   "dependencies": {
-    "@forge/api": "^5.0.0"
+    "@forge/api": "^5.0.0",
+    "@forge/bridge": "^7.2.1",
+    "@forge/react": "^12.4.0",
+    "@forge/resolver": "^2.0.2"
   }
 }
